@@ -1,7 +1,7 @@
 {
-    "name": "admitad/api",
+    "name": "bitcashback/admitad-publisher",
     "type": "library",
-    "description": "Admitad api library",
+    "description": "Admitad publisher api",
     "keywords": ["admitad", "api"],
     "license": "MIT",
     "autoload": {
