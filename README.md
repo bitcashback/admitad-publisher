@@ -1,5 +1,6 @@
 admitad-api
 ==================
+Fork of https://github.com/admitad/admitad-php-api
 
 A PHP wrapper around the Admitad API
 
