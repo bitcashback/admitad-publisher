@@ -4,209 +4,225 @@ namespace Admitad\Api;
 
 use Admitad\Api\Exception\ApiException;
 use Admitad\Api\Exception\Exception;
+use Admitad\Api\Exception\InvalidResponseException;
 use Admitad\Api\Exception\InvalidSignedRequestException;
-use Buzz\Client\ClientInterface;
 use Buzz\Client\Curl;
+use Buzz\Message\RequestInterface;
 
-class Api
-{
-    protected $accessToken;
-    protected $host = 'https://api.admitad.com';
-    private $lastRequest;
-    private $lastResponse;
+class Api {
+	protected mixed $accessToken;
+	protected string $host = 'https://api.admitad.com';
+	private $lastRequest;
+	private $lastResponse;
 
-    public function __construct($accessToken = null)
-    {
-        $this->accessToken = $accessToken;
-    }
+	public function __construct($accessToken = null)
+	{
+		$this->accessToken = $accessToken;
+	}
 
-    public function getAccessToken()
-    {
-        return $this->accessToken;
-    }
+	public function getAccessToken() {
+		return $this->accessToken;
+	}
 
-    public function setAccessToken($accessToken)
-    {
-        $this->accessToken = $accessToken;
-        return $this;
-    }
+	public function setAccessToken($accessToken): static {
+		$this->accessToken = $accessToken;
+		return $this;
+	}
 
-    public function authorizeByPassword($clientId, $clientSecret, $scope, $username, $password)
-    {
-        $query = array(
-            'client_id' => $clientId,
-            'grant_type' => 'client_credentials', // era 'password',
-            'username' => $username,
-            'password' => $password,
-            'scope' => $scope
-        );
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 */
+	public function authorizeByPassword($clientId, $clientSecret, $scope, $username, $password): Response {
+		$query = [
+			'client_id' => $clientId,
+			'grant_type' => 'client_credentials',
+			'username' => $username,
+			'password' => $password,
+			'scope' => $scope,
+		];
 
-        $request = new Request(Request::METHOD_POST, '/token/');
-        $request->setContent(http_build_query($query));
-        $request->addHeader('Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret));
+		$request = new Request(RequestInterface::METHOD_POST, '/token/');
+		$request->setContent(http_build_query($query));
+		$request->addHeader('Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret));
 
-        return $this->send($request, null, [], false);
-    }
+		return $this->send(request: $request, useAuth: false);
+	}
 
-    public function getAuthorizeUrl($clientId, $redirectUri, $scope, $responseType = 'code')
-    {
-        return $this->host . '/authorize/?' . http_build_query(array(
-            'client_id' => $clientId,
-            'redirect_uri' => $redirectUri,
-            'scope' => $scope,
-            'response_type' => $responseType
-        ));
-    }
+	public function getAuthorizeUrl($clientId, $redirectUri, $scope, $responseType = 'code'): string {
+		return $this->host . '/authorize/?' . http_build_query([
+			'client_id' => $clientId,
+			'redirect_uri' => $redirectUri,
+			'scope' => $scope,
+			'response_type' => $responseType,
+		]);
+	}
 
-    public function parseSignedRequest($signedRequest, $clientSecret)
-    {
-        if (!$signedRequest || false === strpos($signedRequest, '.')) {
-            throw new InvalidSignedRequestException("Invalid signed request " . $signedRequest);
-        }
+	/**
+	 * @throws InvalidSignedRequestException
+	 */
+	public function parseSignedRequest($signedRequest, $clientSecret) {
+		if(!$signedRequest || !str_contains($signedRequest, '.')) {
+			throw new InvalidSignedRequestException("Invalid signed request " . $signedRequest);
+		}
 
-        list ($key, $data) = explode('.', $signedRequest);
+		list ($key, $data) = explode('.', $signedRequest);
 
-        $hash = hash_hmac('sha256', $data, $clientSecret);
-        if ($hash != $key) {
-            throw new InvalidSignedRequestException("Invalid signed request " . $signedRequest);
-        }
-        return json_decode(base64_decode($data), true);
-    }
+		$hash = hash_hmac('sha256', $data, $clientSecret);
+		if($hash != $key) {
+			throw new InvalidSignedRequestException("Invalid signed request " . $signedRequest);
+		}
+		return json_decode(base64_decode($data), true);
+	}
 
-    public function requestAccessToken($clientId, $clientSecret, $code, $redirectUri)
-    {
-        $query = array(
-            'code' => $code,
-            'client_id' => $clientId,
-            'client_secret' => $clientSecret,
-            'grant_type' => 'authorization_code',
-            'redirect_uri' => $redirectUri
-        );
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 */
+	public function requestAccessToken(string $clientId, string $clientSecret, $code, string $redirectUri): Response {
+		$query = [
+			'code' => $code,
+			'client_id' => $clientId,
+			'client_secret' => $clientSecret,
+			'grant_type' => 'authorization_code',
+			'redirect_uri' => $redirectUri,
+		];
 
-        $request = new Request(Request::METHOD_POST, '/token/');
-        $request->setContent(http_build_query($query));
+		$request = new Request(RequestInterface::METHOD_POST, '/token/');
+		$request->setContent(http_build_query($query));
 
-        return $this->send($request, null, [], false);
-    }
+		return $this->send(request: $request, useAuth: false);
+	}
 
-    public function refreshToken($clientId, $clientSecret, $refreshToken)
-    {
-        $query = array(
-            'refresh_token' => $refreshToken,
-            'client_id' => $clientId,
-            'client_secret' => $clientSecret,
-            'grant_type' => 'refresh_token'
-        );
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 */
+	public function refreshToken(string $clientId, string $clientSecret, $refreshToken): Response {
+		$query = [
+			'refresh_token' => $refreshToken,
+			'client_id' => $clientId,
+			'client_secret' => $clientSecret,
+			'grant_type' => 'refresh_token',
+		];
 
-        $request = new Request(Request::METHOD_POST, '/token/');
-        $request->setContent(http_build_query($query));
+		$request = new Request(RequestInterface::METHOD_POST, '/token/');
+		$request->setContent(http_build_query($query));
 
-        return $this->send($request, null, [], false);
-    }
+		return $this->send(request: $request, useAuth: false);
+	}
 
-    public function send(Request $request, Response $response = null, $params = [], $useAuth = true)
-    {
-        if (is_null($response)) {
-            $response = new Response();
-        }
+	/**
+	 * @throws ApiException
+	 * @throws Exception
+	 */
+	public function send(Request $request, Response $response = null, array $params = [], bool $useAuth = true): Response {
+		if(is_null($response)) {
+			$response = new Response();
+		}
 
-        if (null === $request->getHost()) {
-            $request->setHost($this->host);
-        }
+		if(null === $request->getHost()) {
+			$request->setHost($this->host);
+		}
 
-        $this->lastRequest = $request;
-        $this->lastResponse = $response;
+		$this->lastRequest = $request;
+		$this->lastResponse = $response;
 
-        if ($useAuth) {
-            if (null === $this->accessToken) {
-                throw new Exception("Access token not provided");
-            }
-            $request->addHeader('Authorization: Bearer ' . $this->accessToken);
-        }
+		if($useAuth) {
+			if(!$this->accessToken) {
+				throw new Exception("Access token not provided");
+			}
+			$request->addHeader('Authorization: Bearer ' . $this->accessToken);
+		}
 
-        $client = $this->createClient();
-        $client->send($request, $response, empty($params) ? [] : [
-	        CURLOPT_POSTFIELDS => $params,
-        ]);
+		$this->createClient()->send($request, $response, empty($params) ? [] : [
+			CURLOPT_POSTFIELDS => $params,
+		]);
 
-        if (!$response->isSuccessful()) {
-            throw new ApiException('Operation failed: ' . $response->getError(), $request, $response);
-        }
+		if(!$response->isSuccessful()) {
+			throw new ApiException('Send failed', $request, $response);
+		}
 
-        return $response;
-    }
+		return $response;
+	}
 
-    public function get($resource, $params = array())
-    {
-        $resource = $resource . '?' . http_build_query($params);
-        $request = new Request(Request::METHOD_GET, $resource);
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 */
+	public function get(string $resource, array $params = []): Response {
+		$resource = $resource . '?' . http_build_query($params);
+		$request = new Request(RequestInterface::METHOD_GET, $resource);
 
-	      //iodump($this->host.$resource);
+		return $this->send($request);
+	}
 
-        return $this->send($request);
-    }
+	public function getIterator($method, $params = [], $limit = 200): Iterator {
+		return new Iterator($this, $method, $params, $limit);
+	}
 
-    public function getIterator($method, $params = array(), $limit = 200)
-    {
-        return new Iterator($this, $method, $params, $limit);
-    }
+	/**
+	 * @throws ApiException
+	 * @throws Exception
+	 */
+	public function post(string $resource, array $params = []): Response {
+		$request = new Request(RequestInterface::METHOD_POST, $resource);
+		//$request->addHeader("Accept-Language: en-US;q=0.6,en;q=0.4");
+		//$request->addHeader("Content-Language: en-US;q=0.6,en;q=0.4");
+		//$request->addHeader("Content-Type: multipart/form-data");
 
-    public function post($resource, $params = array())
-    {
-        $request = new Request(Request::METHOD_POST, $resource);
-//	    $request->addHeader("Accept-Language: en-US;q=0.6,en;q=0.4");
-//	    $request->addHeader("Content-Language: en-US;q=0.6,en;q=0.4");
-	    //$request->addHeader("Content-Type: multipart/form-data");
+		//$request->setContent(http_build_query($params)); //tolto
+		return $this->send($request, null, $params);
+	}
 
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 */
+	public function me(): Response {
+		return $this->get('/me/');
+	}
 
-	      //$request->setContent(http_build_query($params)); //tolto
-        return $this->send($request, null, $params);
-    }
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 */
+	public function authorizeClient(string $clientId, string $clientSecret, string $scope): Response {
+		$query = [
+			'client_id' => $clientId,
+			'scope' => $scope,
+			'grant_type' => 'client_credentials',
+		];
 
-    public function me()
-    {
-        return $this->get('/me/');
-    }
+		$request = new Request(RequestInterface::METHOD_POST, '/token/');
+		$request->addHeader('Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret));
+		$request->setContent(http_build_query($query));
+		return $this->send($request, null, [], false);
+	}
 
-    public function authorizeClient($clientId, $clientSecret, $scope)
-    {
-        $query = array(
-            'client_id' => $clientId,
-            'scope' => $scope,
-            'grant_type' => 'client_credentials'
-        );
+	/**
+	 * @throws Exception
+	 * @throws ApiException
+	 * @throws InvalidResponseException
+	 */
+	public function selfAuthorize(string $clientId, string $clientSecret, string $scope): static {
+		$response = $this->authorizeClient($clientId, $clientSecret, $scope);
+		$accessToken = $response->getResult('access_token');
+		$this->setAccessToken($accessToken);
+		return $this;
+	}
 
-        $request = new Request(Request::METHOD_POST, '/token/');
-        $request->addHeader('Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret));
-        $request->setContent(http_build_query($query));
-        return $this->send($request, null, [], false);
-    }
+	protected function createClient(): Curl {
+		$curl = new Curl();
+		$curl->setTimeout(300);
+		return $curl;
+	}
 
-    public function selfAuthorize($clientId, $clientSecret, $scope)
-    {
-        $r = $this->authorizeClient($clientId, $clientSecret, $scope);
-        $accessToken = $r->getResult('access_token');
-        $this->setAccessToken($accessToken);
-        return $this;
-    }
+	public function getLastRequest() {
+		return $this->lastRequest;
+	}
 
-    /**
-     * @return ClientInterface
-     */
-    protected function createClient()
-    {
-        $curl = new Curl();
-        $curl->setTimeout(300);
-        return $curl;
-    }
-
-    public function getLastRequest()
-    {
-        return $this->lastRequest;
-    }
-
-    public function getLastResponse()
-    {
-        return $this->lastResponse;
-    }
+	public function getLastResponse() {
+		return $this->lastResponse;
+	}
 }

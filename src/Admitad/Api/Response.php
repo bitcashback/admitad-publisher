@@ -6,57 +6,68 @@ use Admitad\Api\Exception\InvalidResponseException;
 
 class Response extends \Buzz\Message\Response
 {
-    private $arrayResult;
-    private $result;
+	private array $arrayResult = [];
+	private mixed $result = null;
 
-    public function getResult($field = null)
-    {
+	/**
+	 * @throws InvalidResponseException
+	 */
+	public function getResult($field = null) {
 
-        if (null === $this->result) {
-            $this->result = new Model($this->getArrayResult());
-        }
+		if (null === $this->result) {
+			$this->result = new Model($this->getArrayResult());
+		}
 
-        if (null !== $field) {
-            if (null !== $this->result && isset($this->result[$field])) {
-                return $this->result[$field];
-            }
-            return null;
-        }
+		if (null !== $field) {
+			if (null !== $this->result && isset($this->result[$field])) {
+				return $this->result[$field];
+			}
+			return null;
+		}
 
-        return $this->result;
-    }
+		return $this->result;
+	}
 
-    public function getArrayResult($field = null)
-    {
-        if (null == $this->arrayResult) {
-            $this->arrayResult = json_decode($this->getContent(), true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new InvalidResponseException($this->getContent());
-            }
-        }
+	/**
+	 * @throws InvalidResponseException
+	 */
+	public function getArrayResult($field = null): array {
 
-        if (null !== $field) {
-            if (null !== $this->arrayResult && isset($this->arrayResult[$field])) {
-                return $this->arrayResult[$field];
-            }
-            return null;
-        }
+		$result = json_decode($this->getContent(), true);
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			throw new InvalidResponseException($this->getContent());
+		}
 
-        return $this->arrayResult;
-    }
+		$this->arrayResult = $result;
 
-    public function getError()
-    {
-        return $this->getResult('error');
-    }
+		if(null !== $field && isset($this->arrayResult[$field])) {
+			return $this->arrayResult[$field];
+		}
 
-    public function getErrorDescription()
-    {
-        return $this->getResult('error_description');
-    }
+		return $this->arrayResult;
+	}
 
-    public function getErrorCode()
-    {
-        return $this->getResult('error_code');
-    }
+	/**
+	 * @throws InvalidResponseException
+	 */
+	public function getError()
+	{
+		return $this->getResult('error');
+	}
+
+	/**
+	 * @throws InvalidResponseException
+	 */
+	public function getErrorDescription()
+	{
+		return $this->getResult('error_description');
+	}
+
+	/**
+	 * @throws InvalidResponseException
+	 */
+	public function getErrorCode()
+	{
+		return $this->getResult('error_code');
+	}
 }
