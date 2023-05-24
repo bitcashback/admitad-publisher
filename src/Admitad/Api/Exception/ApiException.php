@@ -29,6 +29,14 @@ class ApiException extends Exception {
 	/**
 	 * @throws InvalidResponseException
 	 */
+	public function isAdvcampaignNotFound(): bool {
+		return
+			($this->getResponse()->getArrayResult('advcampaign')[0] ?? '') === 'advcampaign not found';
+	}
+
+	/**
+	 * @throws InvalidResponseException
+	 */
 	public function __construct($message, Request $request, Response $response) {
 		$this->request = $request;
 		$this->response = $response;
